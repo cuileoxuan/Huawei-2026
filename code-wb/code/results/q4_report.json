@@ -1,0 +1,440 @@
+{
+ "2": {
+  "资源最小": {
+   "assign": [
+    [
+     "S001",
+     "S002",
+     "S003",
+     "S004",
+     "S005",
+     "S006",
+     "S007",
+     "S009",
+     "S010",
+     "S012",
+     "S013",
+     "S014",
+     "S015"
+    ],
+    [
+     "S008",
+     "S011"
+    ]
+   ],
+   "total_need": {
+    "UAV_A": 0,
+    "UAV_B": 2,
+    "UAV_C": 3,
+    "BAT_A": 0,
+    "BAT_B": 4,
+    "BAT_C": 5,
+    "RELAY": 3,
+    "ECOMP": 4
+   },
+   "gap": {
+    "UAV_A": 0,
+    "UAV_B": 0,
+    "UAV_C": 1,
+    "BAT_A": 0,
+    "BAT_B": 0,
+    "BAT_C": 1,
+    "RELAY": 1,
+    "ECOMP": 0
+   },
+   "redundancy": {
+    "UAV_A": 4,
+    "UAV_B": 0,
+    "UAV_C": 0,
+    "BAT_A": 6,
+    "BAT_B": 0,
+    "BAT_C": 0,
+    "RELAY": 0,
+    "ECOMP": 2
+   },
+   "detail": [
+    {
+     "areas": [
+      "S001",
+      "S002",
+      "S004",
+      "S005",
+      "S009",
+      "S003",
+      "S006",
+      "S007",
+      "S010",
+      "S012",
+      "S013",
+      "S014",
+      "S015"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 2,
+      "BAT_B": 4,
+      "UAV_C": 2,
+      "BAT_C": 4,
+      "RELAY": 2,
+      "ECOMP": 3
+     },
+     "workload": 53842.8260979627
+    },
+    {
+     "areas": [
+      "S008",
+      "S011"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 0,
+      "BAT_B": 0,
+      "UAV_C": 1,
+      "BAT_C": 1,
+      "RELAY": 1,
+      "ECOMP": 1
+     },
+     "workload": 10103.915510696761
+    }
+   ]
+  },
+  "均衡最优": {
+   "assign": [
+    [
+     "S001",
+     "S002",
+     "S004",
+     "S005",
+     "S009",
+     "S015"
+    ],
+    [
+     "S003",
+     "S006",
+     "S007",
+     "S008",
+     "S010",
+     "S011",
+     "S012",
+     "S013",
+     "S014"
+    ]
+   ],
+   "total_need": {
+    "UAV_A": 0,
+    "UAV_B": 3,
+    "UAV_C": 3,
+    "BAT_A": 0,
+    "BAT_B": 5,
+    "BAT_C": 5,
+    "RELAY": 4,
+    "ECOMP": 5
+   },
+   "gap": {
+    "UAV_A": 0,
+    "UAV_B": 1,
+    "UAV_C": 1,
+    "BAT_A": 0,
+    "BAT_B": 1,
+    "BAT_C": 1,
+    "RELAY": 2,
+    "ECOMP": 0
+   },
+   "redundancy": {
+    "UAV_A": 4,
+    "UAV_B": 0,
+    "UAV_C": 0,
+    "BAT_A": 6,
+    "BAT_B": 0,
+    "BAT_C": 0,
+    "RELAY": 0,
+    "ECOMP": 1
+   },
+   "detail": [
+    {
+     "areas": [
+      "S001",
+      "S002",
+      "S004",
+      "S005",
+      "S009",
+      "S015"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 1,
+      "BAT_B": 1,
+      "UAV_C": 2,
+      "BAT_C": 3,
+      "RELAY": 2,
+      "ECOMP": 3
+     },
+     "workload": 32840.312983334596
+    },
+    {
+     "areas": [
+      "S003",
+      "S006",
+      "S007",
+      "S008",
+      "S011",
+      "S010",
+      "S012",
+      "S013",
+      "S014"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 2,
+      "BAT_B": 4,
+      "UAV_C": 1,
+      "BAT_C": 2,
+      "RELAY": 2,
+      "ECOMP": 2
+     },
+     "workload": 33063.8743905781
+    }
+   ]
+  }
+ },
+ "3": {
+  "资源最小": {
+   "assign": [
+    [
+     "S001",
+     "S002",
+     "S003",
+     "S004",
+     "S005",
+     "S006",
+     "S007",
+     "S009",
+     "S010",
+     "S012",
+     "S015"
+    ],
+    [
+     "S008",
+     "S011"
+    ],
+    [
+     "S013",
+     "S014"
+    ]
+   ],
+   "total_need": {
+    "UAV_A": 0,
+    "UAV_B": 2,
+    "UAV_C": 4,
+    "BAT_A": 0,
+    "BAT_B": 4,
+    "BAT_C": 5,
+    "RELAY": 4,
+    "ECOMP": 5
+   },
+   "gap": {
+    "UAV_A": 0,
+    "UAV_B": 0,
+    "UAV_C": 2,
+    "BAT_A": 0,
+    "BAT_B": 0,
+    "BAT_C": 1,
+    "RELAY": 2,
+    "ECOMP": 0
+   },
+   "redundancy": {
+    "UAV_A": 4,
+    "UAV_B": 0,
+    "UAV_C": 0,
+    "BAT_A": 6,
+    "BAT_B": 0,
+    "BAT_C": 0,
+    "RELAY": 0,
+    "ECOMP": 1
+   },
+   "detail": [
+    {
+     "areas": [
+      "S001",
+      "S002",
+      "S004",
+      "S005",
+      "S009",
+      "S003",
+      "S006",
+      "S007",
+      "S010",
+      "S012",
+      "S015"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 2,
+      "BAT_B": 4,
+      "UAV_C": 2,
+      "BAT_C": 3,
+      "RELAY": 2,
+      "ECOMP": 3
+     },
+     "workload": 51281.40583369089
+    },
+    {
+     "areas": [
+      "S008",
+      "S011"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 0,
+      "BAT_B": 0,
+      "UAV_C": 1,
+      "BAT_C": 1,
+      "RELAY": 1,
+      "ECOMP": 1
+     },
+     "workload": 10103.915510696761
+    },
+    {
+     "areas": [
+      "S013",
+      "S014"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 0,
+      "BAT_B": 0,
+      "UAV_C": 1,
+      "BAT_C": 1,
+      "RELAY": 1,
+      "ECOMP": 1
+     },
+     "workload": 6234.865315392046
+    }
+   ]
+  },
+  "均衡最优": {
+   "assign": [
+    [
+     "S001",
+     "S002",
+     "S004",
+     "S005",
+     "S009"
+    ],
+    [
+     "S003",
+     "S006",
+     "S007"
+    ],
+    [
+     "S008",
+     "S010",
+     "S011",
+     "S012",
+     "S013",
+     "S014",
+     "S015"
+    ]
+   ],
+   "total_need": {
+    "UAV_A": 0,
+    "UAV_B": 3,
+    "UAV_C": 4,
+    "BAT_A": 0,
+    "BAT_B": 5,
+    "BAT_C": 6,
+    "RELAY": 5,
+    "ECOMP": 7
+   },
+   "gap": {
+    "UAV_A": 0,
+    "UAV_B": 1,
+    "UAV_C": 2,
+    "BAT_A": 0,
+    "BAT_B": 1,
+    "BAT_C": 2,
+    "RELAY": 3,
+    "ECOMP": 1
+   },
+   "redundancy": {
+    "UAV_A": 4,
+    "UAV_B": 0,
+    "UAV_C": 0,
+    "BAT_A": 6,
+    "BAT_B": 0,
+    "BAT_C": 0,
+    "RELAY": 0,
+    "ECOMP": 0
+   },
+   "detail": [
+    {
+     "areas": [
+      "S001",
+      "S002",
+      "S004",
+      "S005",
+      "S009"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 0,
+      "BAT_B": 0,
+      "UAV_C": 2,
+      "BAT_C": 3,
+      "RELAY": 2,
+      "ECOMP": 3
+     },
+     "workload": 31015.611254015414
+    },
+    {
+     "areas": [
+      "S003",
+      "S006",
+      "S007"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 2,
+      "BAT_B": 3,
+      "UAV_C": 1,
+      "BAT_C": 1,
+      "RELAY": 1,
+      "ECOMP": 2
+     },
+     "workload": 20667.680583376878
+    },
+    {
+     "areas": [
+      "S008",
+      "S011",
+      "S010",
+      "S012",
+      "S013",
+      "S014",
+      "S015"
+     ],
+     "res": {
+      "UAV_A": 0,
+      "BAT_A": 0,
+      "UAV_B": 1,
+      "BAT_B": 2,
+      "UAV_C": 1,
+      "BAT_C": 2,
+      "RELAY": 2,
+      "ECOMP": 2
+     },
+     "workload": 21638.96707707866
+    }
+   ]
+  }
+ }
+}
