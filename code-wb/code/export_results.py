@@ -10,7 +10,6 @@ import pandas as pd
 CODE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(CODE)
 OUT = os.path.join(CODE, "results")
-TEMPLATE = os.path.join(ROOT, "结果提交模板.xlsx")
 DEST = os.path.join(OUT, "结果提交.xlsx")
 
 

@@ -246,8 +246,7 @@ def destroy(routes, q):
 
 
 def repair(rs, removed):
-    """regret 插入修复。"""
-    random.shuffle(removed)
+    """最便宜插入修复：按 (期望送达时间, 优先系数) 排序逐箱插入 ΔE 最小的位置。"""
     removed.sort(key=lambda b: (BOX[b]["t_due"], -BOX[b]["prio"]))
     for b in removed:
         area = BOX[b]["area"]

@@ -7,8 +7,9 @@ problem3.py —— 问题三：通信约束下的运输与中继联合调度
 2. 对每个运输架次重建三维轨迹（爬升/巡航/下降/投送悬停），按 dt 采样
    逐时刻判定与固定网关 G01 的直连链路（LOS + FSPL + 双向链路预算），
    提取“直连不可用”的通信缺口区间（时空通信需求区间）。
-3. 在 DEM 范围内离散生成候选中继悬停点（水平网格 × 离地高度），
-   对每个缺口区间预计算覆盖关系（接入链路 U↔R 与回传链路 R↔G01 同时可用）。
+3. 在 DEM 覆盖范围内离散生成候选中继悬停点（水平网格 × 离地高度），
+   对每个缺口区间按**区间内全部轨迹采样点**预计算覆盖关系
+   （接入链路 U↔R 与回传链路 R↔G01 同时可用）。
 4. 候选中继任务生成（同点可覆盖的不重叠区间合并）+ 集合覆盖 MILP（COPT），
    目标：中继架次数最少，次级目标能耗最低；逐任务验算中继能量约束。
 5. 中继资源排程（2 架中继无人机 + 6 组能源组件 + 两阶段充电周转）。
@@ -31,7 +32,7 @@ D = ProblemData()
 DT = 5.0                    # 通信状态采样步长 s
 GRID_STEP = 400.0           # 候选点水平网格步长 m
 HOVER_HEIGHTS = [60, 120, 180, 240, 300]   # 候选离地高度 m（<= h_max）
-GAP_MAX = 900.0             # 同一中继任务允许跨越的最大区间间隙 s
+LINK_MARGIN = 1.0           # 建链时限安全裕量 s（抵消缓存取整坐标的飞行时间误差）
 
 BOX = {b["id"]: b for b in D.boxes}
 G_POS = D.gateway_pos()
@@ -131,7 +132,7 @@ def find_outages(route):
 
 # ------------------------------------------------------------ 候选中继点
 def candidate_points(out_pos_all):
-    """以缺口位置包围盒为中心生成候选悬停点。"""
+    """以缺口位置包围盒为中心生成候选悬停点（剔除 DEM 覆盖范围之外的点）。"""
     lo = out_pos_all.min(axis=0)[:2] - 1500.0
     hi = out_pos_all.max(axis=0)[:2] + 1500.0
     pts = []
@@ -139,6 +140,8 @@ def candidate_points(out_pos_all):
     ys = np.arange(lo[1], hi[1] + 1, GRID_STEP)
     for x in xs:
         for y in ys:
+            if not D.in_dem(x, y):      # 悬停位置须位于 DEM 覆盖范围内
+                continue
             z_ter = D.dem_elev(x, y)
             for h in HOVER_HEIGHTS:
                 if h > D.relay["h_max"]:
@@ -156,20 +159,27 @@ def backhaul_filter(cands):
     return keep
 
 
-def point_covers_interval(p3, positions, max_check=15):
-    """候选点是否覆盖某缺口区间：先 FSPL 粗筛，再 LOS 抽查。"""
+def point_covers_interval(p3, positions, coarse=15):
+    """候选点是否覆盖某缺口区间：先 FSPL 粗筛 + 粗采样剔除，再全分辨率判定。
+
+    粗采样只能用于**剔除**（存在一个采样点不可用即可判否），不能用于**接受**，
+    否则区间内未被抽到的遮挡子时段会被漏检；判定为覆盖必须区间内全部采样点
+    都满足接入链路门限。
+    """
     # 距离粗筛：与区间内所有采样点的最大三维距离
     d = np.linalg.norm(positions - np.array(p3)[None, :], axis=1) / 1000.0
-    dmax = max(d.max(), 1e-6)
+    dmax = max(float(d.max()), 1e-6)
     lfspl = 32.45 + 20 * math.log10(D.comm["f"]) + 20 * math.log10(dmax)
     if lfspl > LMAX_UR:          # 无遮挡都超门限，必不可行
         return False
-    if len(positions) > max_check:
-        idx = np.linspace(0, len(positions) - 1, max_check).astype(int)
-        samples = positions[idx]
-    else:
-        samples = positions
-    for q in samples:
+    # 先扫跨越整个区间的粗采样点，尽早否掉大多数候选点
+    if len(positions) > coarse:
+        idx = np.linspace(0, len(positions) - 1, coarse).astype(int)
+        for q in positions[idx]:
+            if not D.link_ok(tuple(q), p3, LMAX_UR):
+                return False
+    # 全分辨率复核：区间内每个采样点都必须可用
+    for q in positions:
         if not D.link_ok(tuple(q), p3, LMAX_UR):
             return False
     return True
@@ -184,7 +194,8 @@ def mission_from_point(pt, t_s, t_e):
     t_back, E_back, _ = D.relay_fly(np.array([x, y]), z)   # 对称
     # 时间轴：开始(准备) -> 起飞 -> 飞抵 -> 建链 -> 服务(t_s..t_e) -> 返航
     # 可行性 1：t=0 立即出发也要能在 t_s 前完成建链
-    if r["t_prep"] + t_out + r["t_link"] > t_s + 1e-9:
+    # （留 LINK_MARGIN 裕量，抵消缓存取整坐标带来的飞行时间误差）
+    if r["t_prep"] + t_out + r["t_link"] > t_s - LINK_MARGIN + 1e-9:
         return None
     T_hover = max(0.0, t_e - (t_s - r["t_link"]))
     E_hover = (r["P_hover"] + r["P_comm"]) * T_hover / 3600.0
@@ -192,7 +203,7 @@ def mission_from_point(pt, t_s, t_e):
     # 可行性 2：返航安全余量
     if E_tot > (1 - r["rho"]) * r["Euse"] + 1e-9:
         return None
-    start = max(0.0, t_s - r["t_link"] - t_out - r["t_prep"])
+    start = max(0.0, t_s - r["t_link"] - t_out - r["t_prep"] - LINK_MARGIN)
     ret = t_e + t_back
     return dict(point=(x, y, z), h_agl=h, t_s=t_s, t_e=t_e,
                 start=start, ret=ret, T_hover=T_hover, E=E_tot,
@@ -216,14 +227,16 @@ def mission_from_point_fast(pt, t_s, t_e):
     r = D.relay
     t_out, E_out = _relay_fly_cached(round(x), round(y), round(z))
     t_back, E_back = t_out, E_out
-    if r["t_prep"] + t_out + r["t_link"] > t_s + 1e-9:
+    # 建链时限留 LINK_MARGIN 裕量：缓存值按取整坐标计算，与真实坐标
+    # 相差可达 0.5 s，若任务恰好卡在边界上，真实飞行时间会超限
+    if r["t_prep"] + t_out + r["t_link"] > t_s - LINK_MARGIN + 1e-9:
         return None
     T_hover = max(0.0, t_e - (t_s - r["t_link"]))
     E_hover = (r["P_hover"] + r["P_comm"]) * T_hover / 3600.0
     E_tot = E_out + E_back + E_hover
     if E_tot > (1 - r["rho"]) * r["Euse"] + 1e-9:
         return None
-    start = max(0.0, t_s - r["t_link"] - t_out - r["t_prep"])
+    start = max(0.0, t_s - r["t_link"] - t_out - r["t_prep"] - LINK_MARGIN)
     ret = t_e + t_back
     return dict(point=(x, y, z), h_agl=h, t_s=t_s, t_e=t_e,
                 start=start, ret=ret, T_hover=T_hover, E=E_tot,
@@ -327,6 +340,35 @@ def plan_relays(intervals, feas_lists):
         return False
 
     covered = set()
+
+    def place_single(i, prefer_pt=None):
+        """为单个缺口区间选一个能真正排入资源的悬停点。
+
+        MILP 选出的悬停点可能因中继/能源组件日历冲突而排不进去，此时需要
+        在同一区间的其他覆盖可行点中换点重试（中继不能延迟出发，必须按时建链）。
+        优先 MILP 选中点，其余按能耗升序尝试。
+        """
+        itv = intervals[i]
+        opts, seen = [], set()
+        for fpt in ([prefer_pt] if prefer_pt is not None else []) + list(feas_lists[i]):
+            k = (round(fpt[0]), round(fpt[1]), round(fpt[2]))
+            if k in seen:
+                continue
+            seen.add(k)
+            mm = mission_from_point_fast((fpt[0], fpt[1], fpt[2], fpt[3]),
+                                         itv["t_s"], itv["t_e"])
+            if mm is not None:
+                opts.append((mm["E"], k, mm))
+        pk = None if prefer_pt is None else (round(prefer_pt[0]),
+                                             round(prefer_pt[1]),
+                                             round(prefer_pt[2]))
+        opts.sort(key=lambda o: (o[1] != pk, o[0]))
+        for _, _, mm in opts:
+            if try_place(mm):
+                mm["cover"] = [i]
+                return True
+        return False
+
     for m in sorted(chosen, key=lambda mm: mm["start"]):
         new_cover = [i for i in m["cover"] if i not in covered]
         if not new_cover:
@@ -335,13 +377,10 @@ def plan_relays(intervals, feas_lists):
         if try_place(m):
             covered.update(new_cover)
             continue
-        # 拆成单区间任务逐个尝试
+        # 拆成单区间任务逐个尝试，必要时换用同区间其他候选悬停点
         for i in m["cover"]:
-            itv = intervals[i]
             pt = (m["point"][0], m["point"][1], m["point"][2], m["h_agl"])
-            mm = mission_from_point_fast(pt, itv["t_s"], itv["t_e"])
-            if mm is not None and try_place(mm):
-                mm["cover"] = [i]
+            if place_single(i, pt):
                 covered.add(i)
             else:
                 uncovered.add(i)
@@ -434,8 +473,12 @@ def main():
         for (t_s, t_e, pos) in ivs:
             if t_e - t_s < DT:      # 忽略瞬时抖动
                 continue
-            intervals.append(dict(sortie=rt["sortie"], rel_s=t_s, rel_e=t_e,
-                                  t_s=rt["start"] + t_s, t_e=rt["start"] + t_e,
+            # 区间两端各外扩一个采样步长：5 s 求解采样会把缺口边界低估
+            # 最多一个 DT，外扩保证 1 s 级连续通信在区间边界无缺口
+            intervals.append(dict(sortie=rt["sortie"], rel_s=t_s - DT,
+                                  rel_e=t_e + DT,
+                                  t_s=rt["start"] + t_s - DT,
+                                  t_e=rt["start"] + t_e + DT,
                                   positions=pos))
         if ivs:
             tot = sum(t_e - t_s for t_s, t_e, _ in ivs)
@@ -483,8 +526,8 @@ def main():
             if not uncovered:
                 break
             # 为每个未覆盖区间求“最小延迟使其可排”的架次延迟量
-            # （若延迟会导致医疗/首批箱超时，加大惩罚以保护硬时限）
-            BOX = {b["id"]: b for b in D.boxes}
+            # （若延迟会导致医疗/首批箱超时，加大惩罚以保护硬时限；
+            #   BOX 为模块级全局变量，勿在此重定义）
 
             def hard_penalty(sortie_id, d):
                 rt = next(r for r in routes if r["sortie"] == sortie_id)
@@ -498,7 +541,9 @@ def main():
                             pen += 1e6
                 return pen
 
-            best = None
+            # 分开记录“需要正延迟”和“无需延迟”的最优候选：延迟为 0 候选既不改
+            # 变任何时刻、也不释放中继资源，若只有它入选则继续迭代只会空转。
+            best, best_free = None, None
             for idx in uncovered:
                 itv = intervals[idx]
                 for pt in feas_lists[idx]:
@@ -510,10 +555,22 @@ def main():
                         for cid in comps:
                             d = _joint_delta(occ_u[u], occ_c[cid], m, chg)
                             key = d + hard_penalty(itv["sortie"], d)
-                            if best is None or key < best[0]:
+                            if d <= 1e-6:
+                                if best_free is None or key < best_free[0]:
+                                    best_free = (key, d, idx)
+                            elif best is None or key < best[0]:
                                 best = (key, d, idx)
-            if best is None or best[1] > 1e9:
-                print("  ⚠ 无法通过延迟解决，请增加中继资源")
+            if best is None:
+                best = best_free
+            # key = 延迟量 + 硬时限惩罚（每个违约箱 1e6）：key ≥ 1e6 说明任何可排
+            # 候选都必然破坏医疗/首批硬时限，此时不得静默应用该延迟。
+            if best is None or best[0] >= 1e6:
+                print("  ⚠ 无法在不违反医疗/首批硬时限的前提下解决，"
+                      "请增加中继资源或调整运输方案")
+                break
+            if best[1] <= 1e-6:
+                print("  ⚠ 无法再通过推迟运输架次改善覆盖（可排候选均无需推迟），"
+                      "请增加中继资源")
                 break
             _, d, idx = best
             sid = intervals[idx]["sortie"]
@@ -583,7 +640,7 @@ def main():
                 rows_comm.append(dict(运输架次编号=sid, 通信阶段="飞行/投送",
                                       开始时刻s=round(itv["t_s"], 1),
                                       结束时刻s=round(itv["t_e"], 1),
-                                      保障方式="中继",
+                                      保障方式=("中继" if i in itv_relay else "中断"),
                                       中继架次编号=itv_relay.get(i, "")))
                 cur = itv["t_e"]
             if ivs and cur < t1 - 1e-6:
@@ -594,7 +651,8 @@ def main():
         with open(os.path.join(OUT, "q3_solution.json"), "w", encoding="utf-8") as f:
             json.dump(dict(routes=routes, relays=[{
                 **{k: v for k, v in m.items() if k != "cover"},
-                "cover": [intervals[i]["sortie"] for i in m["cover"]]}
+                "cover": [intervals[i]["sortie"] for i in m["cover"]],
+                "cover_idx": sorted(int(i) for i in m["cover"])}
                 for m in chosen],
                 intervals=[dict(sortie=itv["sortie"], t_s=itv["t_s"],
                                 t_e=itv["t_e"]) for itv in intervals]),

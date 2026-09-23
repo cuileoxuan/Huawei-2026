@@ -18,7 +18,33 @@ import pandas as pd
 import scipy.io as sio
 
 # ---------------------------------------------------------------- 路径
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # D:\desktop\D题
+def _find_root():
+    """从本文件所在目录向上查找同时含“数据/”与提交模板的项目根目录。
+
+    支持两种布局：
+    1. 官方提交布局：code/ 直接位于根目录（如 D题/）之下；
+    2. 仓库布局：D题/ 是 code/ 目录某个祖先的兄弟目录（如 code-wb/code 与 D题/ 平级）。
+    """
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        # 布局 1：本目录即根目录
+        if (os.path.isdir(os.path.join(d, "数据"))
+                and os.path.isfile(os.path.join(d, "结果提交模板.xlsx"))):
+            return d
+        # 布局 2：D题/ 为本目录的兄弟目录
+        cand = os.path.join(d, "D题")
+        if (os.path.isdir(os.path.join(cand, "数据"))
+                and os.path.isfile(os.path.join(cand, "结果提交模板.xlsx"))):
+            return cand
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    # 退回“代码位于 <ROOT>/code/”的默认约定
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+ROOT = _find_root()                                     # D:\desktop\D题
 DATA = os.path.join(ROOT, "数据")
 BASE = os.path.join(DATA, "无人机应急物资运输基础数据")
 GEO = os.path.join(DATA, "镇龙乡地理空间数据", "镇龙乡及周边地理数据")
@@ -224,6 +250,17 @@ class ProblemData:
         """局部平面坐标 (x,y) 处的 DEM 高程（双线性插值），越界取最近边界。"""
         return float(self.dem_elev_vec(np.array([x]), np.array([y]))[0])
 
+    def in_dem(self, x, y):
+        """局部平面坐标 (x,y) 是否落在 DEM 覆盖范围内。
+
+        dem_elev 对越界坐标会静默取最近边界像元，故生成候选点前须先过滤，
+        以保证悬停位置位于 DEM 覆盖范围内（题目要求）。
+        """
+        lon = self.depot["lon"] + math.degrees(x / (R_EARTH * self._cos0))
+        lat = self.depot["lat"] + math.degrees(y / R_EARTH)
+        return (self.dem_lon[0] - 1e-12 <= lon <= self.dem_lon[-1] + 1e-12
+                and self.dem_lat[-1] - 1e-12 <= lat <= self.dem_lat[0] + 1e-12)
+
     def terrain_profile(self, xy1, xy2, step=30.0):
         """沿线采样点坐标与地形高程（向量化）。"""
         d = float(np.linalg.norm(xy2 - xy1))
@@ -379,14 +416,20 @@ class ProblemData:
     def relay_fly(self, xy_to, h_hover):
         """
         中继无人机 O01 -> 悬停点(xy_to, 海拔 h_hover) 单程时间与能耗。
-        巡航海拔 = 航线最高地形 + 50；悬停海拔由方案给定。
+
+        飞行剖面：O01 地面 -> 垂直爬升至剖面最高点 h_top -> 水平巡航至悬停点
+        正上方 -> 垂直升降到悬停海拔 h_hover。其中
+            h_top = max(巡航海拔, 悬停海拔), 巡航海拔 = 航线最高地形 + 50。
+        悬停海拔高于巡航海拔时须先爬到悬停高度（原实现直接按巡航海拔算下降，
+        会漏掉这段爬升，低估往返时间与能耗）。
         """
         r = self.relay
         a = self.depot["xy"]
         d = float(np.linalg.norm(xy_to - a))
         h_cruise = self.max_terrain(a, xy_to) + 50.0
-        h_up = max(0.0, h_cruise - self.work_alt["O01"])
-        h_dn = max(0.0, h_cruise - h_hover)
+        h_top = max(h_cruise, h_hover)
+        h_up = max(0.0, h_top - self.work_alt["O01"])
+        h_dn = max(0.0, h_top - h_hover)
         t_cruise = d / r["vc"]
         t = h_up / r["v_up"] + t_cruise + h_dn / r["v_dn"]
         E = (r["Pc"] * t_cruise / 3600.0
@@ -427,10 +470,6 @@ def milp_binary_solve(c, A_eq=None, b_eq=None, A_ub=None, b_ub=None,
     """
     c = np.asarray(c, dtype=float)
     n = len(c)
-
-    def build_and_solve(create_model):
-        m = create_model()
-        return m
 
     # ---- 首选 COPT ----
     try:

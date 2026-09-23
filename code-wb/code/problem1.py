@@ -15,7 +15,7 @@ import itertools
 import numpy as np
 import pandas as pd
 
-from common import ProblemData, get_copt_model
+from common import ProblemData
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 os.makedirs(OUT, exist_ok=True)
@@ -88,7 +88,6 @@ def feasible_batches(aid, boxes, Q_safe):
 
 def batch_cost(g, aid, bid_tuple):
     """批次的架次时间与能耗。"""
-    w = sum(D.box_w(b) for b in bid_tuple)
     m = D.models[g]
     so = D.eval_sortie(g, [aid], [list(bid_tuple)])
     return so["T"], so["E"]
